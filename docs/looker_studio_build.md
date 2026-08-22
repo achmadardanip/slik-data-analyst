@@ -150,14 +150,39 @@ harus bertipe **Date (YYYYMMDD)**, bukan Text. Kalau masih Text, date range cont
 tidak akan muncul sebagai pilihan. Ubah di halaman data source: kolom
 `report_month` → Type → `Date & Time` → `Date (YYYYMMDD)`.
 
+Lewat konektor **BigQuery** langkah itu tidak perlu: `report_month` sudah bertipe
+`DATE` di `vw_slik_monthly_customer` dan `vw_slik_monthly_trend`, jadi Looker Studio
+mengenalinya sebagai Date sejak awal. Konversi manual hanya diperlukan pada jalur
+Google Sheets, karena spreadsheet mengirim kolom itu sebagai teks. Jumlah baris di
+tabel di atas sudah dicocokkan dengan view BigQuery **dan** CSV di `output/` — keduanya
+identik, jadi kedua jalur konektor menghasilkan angka yang sama.
+
 Field yang perlu dibuat di data source (Add a field):
 
 | Data source | Nama field | Rumus | Kegunaan |
 |---|---|---|---|
 | `DS_CUST` | `NPL aktif (%)` | `AVG(npl_now_active)` (agregasi Average, format Percent) | outcome independen — dipakai di semua bad rate |
-| `DS_CUST` | `Lolos kriteria usulan` | `CASE WHEN whitelist_flag = "3.Customer Others" AND collection_status_allcondition_last_12months_max <= 2 THEN "Lolos" ELSE "Ditolak" END` | scorecard "pemohon lolos" & grafik halaman 7 |
+| `DS_CUST` | `Lolos kriteria usulan` | `CASE WHEN whitelist_flag = "3.Customer Others" AND COALESCE(collection_status_allcondition_last_12months_max, 1) <= 2 THEN "Lolos" ELSE "Ditolak" END` | scorecard "pemohon lolos" & grafik halaman 7 |
 | `DS_PANEL` | `Kol 3-5 (%)` | `AVG(is_npl)` (Average, Percent) | garis tren risiko |
 | `DS_PANEL` | `Rata-rata hari telat` | `AVG(hari_telat_max)` | batang tren |
+
+Dua hal yang mudah terlewat dan langsung membuat angka Looker berbeda dari Excel/notebook:
+
+- **`COALESCE(..., 1)` pada rumus "Lolos kriteria usulan" itu wajib, bukan hiasan.**
+  Sembilan pemohon ber-flag `3.Customer Others` tidak punya satu pun baris riwayat pada
+  jendela 12 bulan, jadi `collection_status_allcondition_last_12months_max`-nya NULL.
+  Pipeline SQL memperlakukan NULL sebagai Kol 1 (tidak ada tunggakan yang dilaporkan) —
+  lihat `COALESCE(..., 1)` di `vw_whitelist_scenarios`. Tanpa `COALESCE`, Looker menilai
+  `NULL <= 2` sebagai salah, sembilan pemohon itu masuk "Ditolak", dan scorecard halaman 7
+  menampilkan **481 (82,3%)** — bukan **490 (83,5%)** seperti di README, workbook, dan
+  notebook.
+- **Kolom persen di view sudah teragregasi; ganti agregasinya ke `Average`.** Field seperti
+  `pct_basis`, `npl_active_pct`, `gini`, `iv`, `rate`, `avg_facility_count`,
+  `customer_npl_pct`, dan `avg_dpd_days` sudah berupa hasil hitung satu baris per kategori.
+  Looker Studio memberi agregasi default **Sum**, yang benar hanya selama satu baris per
+  titik; begitu ada filter atau rentang tanggal yang menggabungkan beberapa baris, hasilnya
+  menjadi persentase di atas 100. Di halaman data source, set `Default aggregation` =
+  **Average** untuk kolom-kolom ini.
 
 ### 4.2 Kontrol interaktif
 
@@ -374,6 +399,12 @@ Jalankan berurutan. Item 1–5 adalah yang memperbaiki masalah "terpotong".
 - [ ] Date range control default `Nov 1 2021 – Oct 31 2023` dan benar-benar
       mengubah halaman 5
 - [ ] Ketiga drop-down filter sudah **report-level** dan berfungsi di semua halaman
+- [ ] **Uji angka kunci**: scorecard halaman 7 menunjukkan **490 pemohon / 83,5%**
+      (kalau muncul 481 / 82,3%, rumus `Lolos kriteria usulan` belum memakai
+      `COALESCE(..., 1)` — lihat §4.1), dan KPI 3 halaman 1 menunjukkan **13**
+- [ ] Kolom persen bawaan view (`pct_basis`, `npl_active_pct`, `gini`, `iv`, `rate`,
+      `avg_facility_count`, `customer_npl_pct`, `avg_dpd_days`) memakai agregasi
+      **Average**, bukan Sum — tidak ada persentase di atas 100 setelah difilter
 - [ ] `File` → `Download report` → PDF: hasil PDF tidak ada halaman kosong dan tidak
       ada visual terpotong (bukti tambahan untuk lampiran submit)
 - [ ] `Share` → *Anyone with the link – Viewer*, lalu tambahkan alamat email
