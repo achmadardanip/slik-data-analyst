@@ -19,6 +19,21 @@
 --  8. vw_slik_monthly_customer    : panel NIK x bulan             -> DS_PANEL.
 --  9. vw_whitelist_scenarios      : simulasi 5 skenario kriteria whitelist.
 -- 10. vw_demografi_ci             : bad rate per demografi + CI 95% (Wilson).
+-- 11. vw_looker_customer          : DS_CUST versi siap-Looker -- slik_customer_
+--                                   analysis + kolom turunan yang tadinya harus
+--                                   dibuat manual sebagai calculated field.
+-- 12. vw_looker_kpi               : 1 baris, seluruh angka KPI halaman 1 & 7
+--                                   sudah dihitung -> scorecard tanpa filter.
+--
+-- KENAPA ADA OBJEK 11 & 12
+-- Keduanya tidak menambah analisis baru; keduanya memindahkan logika yang rawan
+-- salah dari sisi Looker Studio ke sisi SQL. Rumus `Lolos kriteria usulan` harus
+-- memakai COALESCE(kol_12m, 1) karena 9 pemohon ber-flag Others tidak punya baris
+-- riwayat sama sekali pada jendela 12 bulan. Kalau rumus itu ditulis ulang dengan
+-- tangan di Looker tanpa COALESCE, scorecard menampilkan 481 (82,3%) alih-alih
+-- 490 (83,5%) dan laporan jadi bertentangan dengan workbook serta notebook.
+-- Dengan kolom ini tersedia langsung di view, laporan Looker tidak perlu satu pun
+-- calculated field untuk kriteria whitelist.
 --
 -- BULAN APLIKASI
 -- Bulan aplikasi 2023-11 ditulis sebagai literal DATE '2023-11-01' di setiap
@@ -642,3 +657,103 @@ SELECT
   ROUND(k_npl_aktif / n, 4)         AS npl_active_rate
 FROM wilson
 ORDER BY dimensi, kategori;
+
+
+-- ----------------------------------------------------------------------------
+-- 11. DS_CUST siap-Looker.
+--     Semua kolom slik_customer_analysis diteruskan apa adanya (supaya parity
+--     dengan CSV/workbook tetap bisa diuji), lalu ditambah kolom turunan yang
+--     sebelumnya harus dibuat sebagai calculated field di Looker Studio.
+--     Label kelompok dipakai apa adanya sebagai teks pada chart, jadi pembaca
+--     non-teknis tidak perlu menerjemahkan kode "3.Customer Others".
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW `slik-da-intern-technical-test.slik.vw_looker_customer` AS
+SELECT
+  c.*,
+
+  -- Kriteria whitelist usulan (skenario S2). COALESCE(...,1): 9 pemohon Others
+  -- tanpa baris riwayat 12 bulan diperlakukan sebagai Kol 1, sama seperti
+  -- vw_whitelist_scenarios. Tanpa ini hasilnya 481, bukan 490.
+  IF(c.whitelist_flag = '3.Customer Others'
+       AND COALESCE(c.collection_status_allcondition_last_12months_max, 1) <= 2,
+     'Lolos', 'Ditolak')                                    AS lolos_kriteria_usulan,
+
+  -- Kantong risiko yang masih lolos kriteria berjalan (KPI "13" di halaman 1).
+  IF(c.whitelist_flag = '3.Customer Others'
+       AND c.collection_status_allcondition_last_6months_max BETWEEN 3 AND 5,
+     1, 0)                                                  AS celah_npl_others_6bln,
+
+  -- Label bahasa awam untuk tiga kelompok whitelist.
+  CASE c.whitelist_flag
+    WHEN '1.Customer has Writeoff' THEN 'Pernah hapus buku'
+    WHEN '2.Customer has Restru'   THEN 'Pernah restrukturisasi'
+    WHEN '3.Customer Others'       THEN 'Tanpa catatan buruk'
+    ELSE c.whitelist_flag
+  END                                                       AS kelompok_whitelist,
+
+  -- Label bahasa awam untuk segmen perilaku. Huruf A-E dipertahankan supaya
+  -- urutan sortir dan penyebutan "segmen D" di dokumen lain tetap berlaku;
+  -- yang berubah hanya teksnya menjadi bahasa Indonesia sehari-hari.
+  CASE c.slik_behavior_segment
+    WHEN 'A. Clean & Current'   THEN 'A. Lancar semua'
+    WHEN 'B. Past Due Ringan'   THEN 'B. Telat ringan'
+    WHEN 'C. Restructured'      THEN 'C. Direstrukturisasi'
+    WHEN 'D. NPL / Delinquent'  THEN 'D. Macet / NPL'
+    WHEN 'E. Writeoff'          THEN 'E. Sudah dihapus buku'
+    ELSE c.slik_behavior_segment
+  END                                                       AS segmen_awam,
+
+  -- Penanda pemohon tanpa jejak eksposur aktif, sebagai teks agar bisa dipakai
+  -- langsung sebagai dimensi/breakdown tanpa perlu memetakan 0/1.
+  IF(c.is_thin_file = 1, 'Tanpa jejak SLIK aktif', 'Ada eksposur aktif')
+                                                            AS status_jejak_slik
+FROM `slik-da-intern-technical-test.slik.slik_customer_analysis` c;
+
+
+-- ----------------------------------------------------------------------------
+-- 12. Satu baris berisi seluruh angka KPI halaman 1 dan 7.
+--     Alasannya praktis: scorecard Looker Studio yang memakai chart-level filter
+--     adalah sumber kesalahan paling sering (filter tertinggal, operator salah,
+--     NULL tidak tertangani). Dengan view ini setiap scorecard cukup memilih satu
+--     kolom, tanpa filter sama sekali, sehingga angka di laporan mustahil berbeda
+--     dari angka di workbook dan notebook.
+--     Agregasi kolom di Looker: pilih MAX atau AVG -- karena hanya ada 1 baris,
+--     keduanya mengembalikan nilai yang sama dan tidak bisa menggandakan diri
+--     walau ada filter halaman yang aktif.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW `slik-da-intern-technical-test.slik.vw_looker_kpi` AS
+WITH c AS (
+  SELECT
+    *,
+    (whitelist_flag = '3.Customer Others'
+      AND COALESCE(collection_status_allcondition_last_12months_max, 1) <= 2) AS lolos_s2
+  FROM `slik-da-intern-technical-test.slik.slik_customer_analysis`
+)
+SELECT
+  -- Basis pemohon
+  COUNT(*)                                                       AS total_pemohon,
+  COUNTIF(whitelist_flag = '3.Customer Others')                  AS pemohon_tanpa_catatan_buruk,
+  COUNTIF(whitelist_flag = '1.Customer has Writeoff')            AS pemohon_pernah_hapus_buku,
+  COUNTIF(whitelist_flag = '2.Customer has Restru')              AS pemohon_pernah_restru,
+  COUNTIF(is_thin_file = 1)                                      AS pemohon_tanpa_jejak_slik,
+
+  -- Kebocoran kriteria yang berjalan sekarang (halaman 1, KPI 3)
+  COUNTIF(whitelist_flag = '3.Customer Others'
+          AND collection_status_allcondition_last_6months_max BETWEEN 3 AND 5)
+                                                                 AS celah_npl_others_6bln,
+
+  -- Kriteria usulan S2 (halaman 7, KPI 1-4)
+  COUNTIF(lolos_s2)                                              AS pemohon_lolos_usulan,
+  ROUND(100 * COUNTIF(lolos_s2) / COUNT(*), 1)                   AS pct_basis_lolos_usulan,
+  ROUND(100 * AVG(IF(lolos_s2, npl_now_active, NULL)), 2)        AS npl_aktif_lolos_pct,
+  ROUND(100 * AVG(IF(lolos_s2, ever_npl_12m,   NULL)), 2)        AS pernah_npl_12bln_lolos_pct,
+
+  -- Pembanding: kriteria tanpa filter dan kriteria yang berjalan sekarang
+  ROUND(100 * AVG(npl_now_active), 2)                            AS npl_aktif_basis_pct,
+  ROUND(100 * AVG(IF(whitelist_flag = '3.Customer Others', npl_now_active, NULL)), 2)
+                                                                 AS npl_aktif_kriteria_sekarang_pct,
+
+  -- Selisih basis yang dikorbankan oleh kriteria usulan, dalam poin persen
+  ROUND(100 * COUNTIF(whitelist_flag = '3.Customer Others') / COUNT(*)
+      - 100 * COUNTIF(lolos_s2) / COUNT(*), 1)                   AS biaya_basis_pp
+FROM c;

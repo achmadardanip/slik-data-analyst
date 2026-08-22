@@ -15,7 +15,7 @@ Pengerjaan lengkap technical test **Risk Data Analyst Intern** (posisi aplikasi 
 ├── sql/
 │   ├── 01_load_tables.sql                 # DDL + panduan load CSV ke BigQuery
 │   ├── 02_slik_aggregated_table.sql       # ⭐ query utama: SLIK aggregated table (25 kolom)
-│   └── 03_analysis_views.sql              # 1 tabel + 10 view + 1 UDF: sumber data Looker Studio
+│   └── 03_analysis_views.sql              # 1 tabel + 12 view + 1 UDF: sumber data Looker Studio
 ├── output/
 │   ├── SLIK_Analysis_Dashboard.xlsx       # ⭐ deliverable B: dashboard 13 tab, siap import GSheet
 │   ├── slik_aggregated_table.csv          # hasil query utama (587 × 25)
@@ -28,11 +28,13 @@ Pengerjaan lengkap technical test **Risk Data Analyst Intern** (posisi aplikasi 
 │   ├── slik_monthly_customer.csv          # panel bulanan per customer (sumber kontrol date range)
 │   └── whitelist_scenarios.csv            # simulasi 5 skenario kriteria whitelist
 ├── docs/
-│   └── looker_studio_build.md             # ⭐ spesifikasi layout + tema Jago + storyline 7 halaman
+│   ├── looker_studio_build.md             # ⭐ spesifikasi layout + tema Jago + storyline 7 halaman
+│   ├── LOOKER_PERBAIKAN_CEPAT.md          # perbaikan layout terpotong (mulai di sini)
+│   └── looker_calculated_fields.md        # rumus field Looker + uji angka
 ├── notebooks/
 │   └── slik_insight_analysis.ipynb        # ⭐ deliverable C: insight (sudah tereksekusi)
 ├── assets/
-│   └── jago_logo.png                      # logo untuk header dashboard
+│   └── jago_logo.svg                      # penanda logo untuk header dashboard
 └── requirements.txt
 ```
 
@@ -74,11 +76,15 @@ string tersebut.
 3. Jalankan `sql/02_slik_aggregated_table.sql` → menghasilkan
    **`slik-da-intern-technical-test.slik.slik_aggregated_table`** (587 baris × 25 kolom).
    Ini **Table ID** yang dilampirkan saat submit.
-4. Jalankan `sql/03_analysis_views.sql` → 12 objek pendukung dashboard: tabel
-   `slik_customer_analysis`, UDF `fn_kol_label`, dan 10 view (`vw_slik_facility`,
+4. Jalankan `sql/03_analysis_views.sql` → 14 objek pendukung dashboard: tabel
+   `slik_customer_analysis`, UDF `fn_kol_label`, dan 12 view (`vw_slik_facility`,
    `vw_slik_facility_history`, `vw_matrix_whitelist_x_kol6m`, `vw_segment_summary`,
    `vw_scorecard_deciles`, `vw_scorecard_power`, `vw_slik_monthly_trend`,
-   `vw_slik_monthly_customer`, `vw_whitelist_scenarios`, `vw_demografi_ci`).
+   `vw_slik_monthly_customer`, `vw_whitelist_scenarios`, `vw_demografi_ci`,
+   `vw_looker_customer`, `vw_looker_kpi`). Dua view terakhir khusus untuk Looker
+   Studio: keduanya memindahkan rumus yang rawan salah ketik dari sisi laporan ke
+   sisi SQL, sehingga dashboard Looker tidak butuh satu pun *calculated field* untuk
+   kriteria whitelist dan tidak butuh *chart-level filter* untuk KPI.
 5. **Share akses**: halaman dataset `slik` → **Sharing → Permissions → Add principal** →
    `muhammad.subhan@jago.com` → role **BigQuery Data Viewer**.
 6. **Google Docs**: salin isi ketiga file `sql/` ke satu dokumen Google Docs (beri heading per file),
@@ -134,19 +140,36 @@ dan mengukur tinggi konten per tab sebelum file dianggap final.
 
 #### 2b. Looker Studio — 7 halaman
 
-Panduan lengkap ada di **[`docs/looker_studio_build.md`](docs/looker_studio_build.md)**: setelan
-kanvas (1600×900, *Fit to width*, `Canvas size = Auto` per halaman) yang memperbaiki visual
-terpotong di mode presentasi, koordinat tiap elemen, tema Jago, dan checklist verifikasi.
+**Laporan:** https://datastudio.google.com/reporting/4bd2171c-d77c-4ac7-a353-3d6a53de1698
+
+| Dokumen | Kegunaan |
+|---|---|
+| [`docs/LOOKER_PERBAIKAN_CEPAT.md`](docs/LOOKER_PERBAIKAN_CEPAT.md) | **Mulai di sini** — perbaiki visual terpotong + Safari + checklist 10 menit |
+| [`docs/looker_studio_build.md`](docs/looker_studio_build.md) | Spesifikasi lengkap: koordinat piksel, 7 halaman, tema Jago, storyline |
+| [`docs/looker_calculated_fields.md`](docs/looker_calculated_fields.md) | Rumus field Looker siap copy-paste + uji angka |
+
+Setelan kanvas (1600×900, *Fit to width*, `Canvas size = Auto` per halaman) plus
+membangun satu halaman lalu **Duplicate page** enam kali memperbaiki visual terpotong di
+mode presentasi: delapan komponen kerangka (judul, sub-judul, logo, garis aksen, label
+topik, baris kontrol, headline, catatan kaki) jadi berada di koordinat identik di semua
+halaman, bukan ditempel ulang manual 56 kali.
+
+Rumus yang rawan salah ketik dipindahkan ke BigQuery lewat `vw_looker_customer`
+(menambah `lolos_kriteria_usulan`, `celah_npl_others_6bln`, dan tiga kolom label bahasa
+awam) dan `vw_looker_kpi` (satu baris berisi seluruh angka KPI). Akibatnya laporan tidak
+memerlukan *calculated field* untuk kriteria whitelist dan tidak memerlukan
+*chart-level filter* untuk KPI, sehingga angka Looker dijamin sama dengan workbook dan
+notebook: 587 pemohon, 510 flag Others, 13 celah risiko, 490 lolos (83,5%).
 
 | Halaman | Pertanyaan yang dijawab | Data source |
 |---|---|---|
-| 1. Ringkasan eksekutif | Seberapa besar dan seberapa berisiko basis pemohon ini? | `slik_customer_analysis` |
-| 2. Matrix report | Apakah flag whitelist benar-benar memisahkan risiko? | `vw_matrix_whitelist_x_kol6m` |
+| 1. Ringkasan eksekutif | Seberapa besar dan seberapa berisiko basis pemohon ini? | `vw_looker_kpi`, `vw_whitelist_scenarios`, `vw_slik_monthly_customer` |
+| 2. Matrix report | Apakah flag whitelist benar-benar memisahkan risiko? | `vw_looker_customer`, `vw_matrix_whitelist_x_kol6m` |
 | 3. Segmentasi perilaku | Perilaku kredit seperti apa yang paling berbahaya? | `vw_segment_summary` |
 | 4. Uji kelayakan scorecard | Variabel SLIK mana yang layak masuk scorecard? | `vw_scorecard_deciles`, `vw_scorecard_power` |
 | 5. Tren kualitas portofolio | Apakah kualitas kredit membaik atau memburuk? | `vw_slik_monthly_trend`, `vw_slik_monthly_customer` |
 | 6. Demografi vs risiko | Apakah demografi menambah informasi di luar data SLIK? | `vw_demografi_ci` |
-| 7. Rekomendasi & simulasi | Kriteria whitelist mana yang sebaiknya dipakai? | `vw_whitelist_scenarios` |
+| 7. Rekomendasi & simulasi | Kriteria whitelist mana yang sebaiknya dipakai? | `vw_looker_kpi`, `vw_whitelist_scenarios` |
 
 Elemen interaktif: **date range control** pada field `report_month` (panel bulanan `DS_PANEL`,
 dipakai halaman 1 & 5) plus drop-down `whitelist_flag`, `slik_behavior_segment`, dan `age_group`.
