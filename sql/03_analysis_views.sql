@@ -401,7 +401,8 @@ ranked AS (
       (ROW_NUMBER() OVER (PARTITION BY metric ORDER BY value, NIK) - 1) * 10
       / (COUNT(*) OVER (PARTITION BY metric) - 1)) AS INT64))  AS bin,
     RANK()    OVER (PARTITION BY metric ORDER BY value)
-      + (COUNT(*) OVER (PARTITION BY metric, value) - 1) / 2   AS rank_avg
+      + (COUNT(*) OVER (PARTITION BY metric ORDER BY value
+                        RANGE BETWEEN CURRENT ROW AND CURRENT ROW) - 1) / 2  AS rank_avg
   FROM m
 ),
 binned AS (

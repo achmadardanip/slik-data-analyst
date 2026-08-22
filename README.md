@@ -56,11 +56,13 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 ### 1. BigQuery (deliverable A: SQL + Table ID)
 
-1. Buka [BigQuery Console](https://console.cloud.google.com/bigquery) → buat project (mis.
-   `slik-technical-test`) → buat dataset `slik` (lokasi bebas, mis. `asia-southeast2`).
-2. **Ganti semua** `PROJECT_ID.slik` di ketiga file `sql/` dengan project & dataset Anda
-   (cukup search-replace `PROJECT_ID`).
-3. Jalankan `sql/01_load_tables.sql` (membuat 4 tabel kosong ber-skema STRING), lalu upload
+Ketiga file `sql/` sudah memakai project & dataset final
+`slik-da-intern-technical-test.slik`. Kalau di-deploy ke project lain, cukup search-replace
+string tersebut.
+
+1. Buka [BigQuery Console](https://console.cloud.google.com/bigquery) → buat project
+   `slik-da-intern-technical-test` → buat dataset `slik` (lokasi bebas, mis. `asia-southeast2`).
+2. Jalankan `sql/01_load_tables.sql` (membuat 4 tabel kosong ber-skema STRING), lalu upload
    tiap CSV dari folder `data/` ke tabel terkait: dataset → **Create table** → Upload → pilih file →
    *Write preference: Append to table* → *Header rows to skip: 1*.
    | File CSV | Tabel tujuan |
@@ -69,28 +71,35 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
    | `Technical Test Dataset - demographic1.csv` | `slik_demographic1` |
    | `Technical Test Dataset - demographic2.csv` | `slik_demographic2` |
    | `Technical Test Dataset - ljk mapping.csv` | `slik_ljk_mapping` |
-4. Jalankan `sql/02_slik_aggregated_table.sql` → menghasilkan
-   **`PROJECT_ID.slik.slik_aggregated_table`** (587 baris × 25 kolom). Ini **Table ID** yang
-   dilampirkan saat submit.
-5. Jalankan `sql/03_analysis_views.sql` → 12 objek pendukung dashboard: tabel
+3. Jalankan `sql/02_slik_aggregated_table.sql` → menghasilkan
+   **`slik-da-intern-technical-test.slik.slik_aggregated_table`** (587 baris × 25 kolom).
+   Ini **Table ID** yang dilampirkan saat submit.
+4. Jalankan `sql/03_analysis_views.sql` → 12 objek pendukung dashboard: tabel
    `slik_customer_analysis`, UDF `fn_kol_label`, dan 10 view (`vw_slik_facility`,
    `vw_slik_facility_history`, `vw_matrix_whitelist_x_kol6m`, `vw_segment_summary`,
    `vw_scorecard_deciles`, `vw_scorecard_power`, `vw_slik_monthly_trend`,
    `vw_slik_monthly_customer`, `vw_whitelist_scenarios`, `vw_demografi_ci`).
-6. **Share akses**: halaman dataset `slik` → **Sharing → Permissions → Add principal** →
+5. **Share akses**: halaman dataset `slik` → **Sharing → Permissions → Add principal** →
    `muhammad.subhan@jago.com` → role **BigQuery Data Viewer**.
-7. **Google Docs**: salin isi ketiga file `sql/` ke satu dokumen Google Docs (beri heading per file),
+6. **Google Docs**: salin isi ketiga file `sql/` ke satu dokumen Google Docs (beri heading per file),
    set akses *Anyone with the link – Viewer*, lampirkan link saat submit.
 
 > **Kesetaraan angka SQL ↔ Excel ↔ Notebook.** Logika query utama dijalankan ulang lokal lewat dua
-> implementasi independen (DuckDB dan pandas murni) dan seluruh 587×25 sel identik. View analisis
-> memakai rumus desil yang sama dengan `pd.qcut` — bukan `NTILE(10)`, yang menaruh baris sisa di
-> bucket awal sehingga IV dan bad rate per desil berbeda tipis dari angka yang tercetak di
-> workbook. Hasilnya `vw_scorecard_power` dan `vw_scorecard_deciles` mereproduksi
-> `output/scorecard_*.csv` persis. Dua sel *cross-check* di dalam notebook (bagian 5 dan 8)
-> membandingkan ulang IV/Gini/AUC dan seluruh baris simulasi kebijakan terhadap CSV yang sama,
-> dan keduanya mencetak `0 sel berbeda -> IDENTIK` — jadi angka BigQuery, Excel, Looker, dan
-> notebook bisa dibandingkan langsung tanpa catatan kaki.
+> implementasi independen (DuckDB dan pandas murni) dan seluruh 587×25 sel identik. Tabel BigQuery
+> yang sudah jadi kemudian dibandingkan sel per sel terhadap hasil lokal: **14.670 dari 14.675 sel
+> identik**; 5 sel sisanya (`mob_active_avg` 1 sel, `slik_installment` 4 sel) berbeda tepat 0,01
+> karena urutan akumulasi *floating-point* antar engine berbeda dan nilainya jatuh persis di batas
+> pembulatan `ROUND(…, 2)` — selisih relatif 1e-9 s.d. 3e-3, tidak mengubah satu pun angka agregat,
+> segmen, atau rekomendasi.
+>
+> View analisis memakai rumus desil yang sama dengan `pd.qcut` — bukan `NTILE(10)`, yang menaruh
+> baris sisa di bucket awal sehingga IV dan bad rate per desil berbeda tipis dari angka yang
+> tercetak di workbook. Enam view (`vw_scorecard_power`, `vw_scorecard_deciles`,
+> `vw_whitelist_scenarios`, `vw_segment_summary`, `vw_matrix_whitelist_x_kol6m`,
+> `vw_slik_monthly_trend`) diuji langsung terhadap CSV di `output/` dan **seluruhnya identik**.
+> Dua sel *cross-check* di dalam notebook (bagian 5 dan 8) mengulang uji yang sama dan mencetak
+> `0 sel berbeda -> IDENTIK`. Jadi angka BigQuery, Excel, Looker, dan notebook bisa dibandingkan
+> langsung tanpa catatan kaki.
 
 ### 2. Visualisasi + Analisis (deliverable B)
 
