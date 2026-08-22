@@ -1,0 +1,32 @@
+# ---------------------------------------------------------------------------
+# Materi milik perusahaan — tidak dipublikasikan
+# ---------------------------------------------------------------------------
+# Dataset technical test beserta kamus KODE REFERENSI OJK, dan berkas soal.
+# Keduanya milik Bank Jago dan memuat identifier level debitur, jadi tidak
+# ikut dipublikasikan di repositori publik ini.
+data/
+Risk Data Analysis Intern Technical Test*.md
+
+# ---------------------------------------------------------------------------
+# Skrip pembangun deliverable
+# ---------------------------------------------------------------------------
+scripts/
+
+# ---------------------------------------------------------------------------
+# Lingkungan & artefak lokal
+# ---------------------------------------------------------------------------
+.venv/
+venv/
+.jupyter_runtime/
+outputs/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# ---------------------------------------------------------------------------
+# Berkas sistem operasi & editor
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

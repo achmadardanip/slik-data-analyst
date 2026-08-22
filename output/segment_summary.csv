@@ -1,0 +1,6 @@
+slik_behavior_segment,total_customer,avg_facility_count,avg_slik_exposure,avg_slik_installment,avg_balance_sum,avg_mob_max,customer_ever_npl_12m,customer_npl_now_active,customer_dpd_3m,pct_customer,npl_active_pct,dpd_3m_pct
+A. Clean & Current,426,17.7,23848348.9,9989217.4,270495130.9,83.4,0,0,0,72.6,0.0,0.0
+B. Past Due Ringan,64,34.8,52073907.3,22838614.2,646920379.9,90.9,0,0,31,10.9,0.0,48.4
+C. Restructured,14,28.3,76710744.0,63812244.4,1777471513.8,122.3,0,0,5,2.4,0.0,35.7
+D. NPL / Delinquent,22,64.2,30000058.4,16869407.7,229246340.4,79.6,22,10,14,3.7,45.5,63.6
+E. Writeoff,61,50.4,10979389.9,5847266.2,433805121.1,94.8,60,10,61,10.4,16.4,100.0

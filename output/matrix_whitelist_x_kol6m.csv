@@ -1,0 +1,13 @@
+whitelist_flag,kol_6m_label,total_customer
+1.Customer has Writeoff,Kol 2 - Dalam Perhatian Khusus,1
+1.Customer has Writeoff,Kol 5 - Macet,60
+2.Customer has Restru,Kol 1 - Lancar,9
+2.Customer has Restru,Kol 2 - Dalam Perhatian Khusus,5
+2.Customer has Restru,Kol 4 - Diragukan,1
+2.Customer has Restru,Kol 5 - Macet,1
+3.Customer Others,Kol 1 - Lancar,441
+3.Customer Others,Kol 2 - Dalam Perhatian Khusus,46
+3.Customer Others,Kol 3 - Kurang Lancar,1
+3.Customer Others,Kol 4 - Diragukan,6
+3.Customer Others,Kol 5 - Macet,6
+3.Customer Others,Tanpa Riwayat 6 Bln,10

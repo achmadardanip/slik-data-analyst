@@ -1,0 +1,6 @@
+skenario,lolos,pct_basis,npl_active_pct,npl_now_pct,npl_12m_pct
+S0 - Semua aplikasi (tanpa filter),587,100.0,3.41,11.93,13.97
+S1 - Flag Others saja (kriteria saat ini),510,86.9,1.57,1.57,3.92
+S2 - Others + Kol 12 bln <= 2,490,83.5,0.0,0.0,0.0
+S3 - Others + Kol 12 bln <= 2 + DPD 3 bln = 0,459,78.2,0.0,0.0,0.0
+S4 - Others + Kol 12 bln = 1 + DPD 3 bln = 0,428,72.9,0.0,0.0,0.0
