@@ -6,7 +6,7 @@ Pengerjaan lengkap technical test **Risk Data Analyst Intern** (posisi aplikasi 
 | Deliverable | Isi | Lokasi |
 |---|---|---|
 | **A. SQL + Table ID** | *SLIK aggregated table* 587 customer × 25 kolom di BigQuery | `sql/` |
-| **B. Visualisasi + analisis** | Dashboard Google Sheets/Excel: 12 tab terlihat + 7 halaman analitis | `output/` |
+| **B. Visualisasi + analisis** | Dashboard Google Sheets/Excel: 13 tab terlihat + 7 halaman analitis | `output/` |
 | **C. Insight** | Jupyter Notebook tereksekusi (grafik + angka + narasi) | `notebooks/` |
 
 ## Struktur Proyek
@@ -17,7 +17,7 @@ Pengerjaan lengkap technical test **Risk Data Analyst Intern** (posisi aplikasi 
 │   ├── 02_slik_aggregated_table.sql       # ⭐ query utama: SLIK aggregated table (25 kolom)
 │   └── 03_analysis_views.sql              # 1 tabel + 12 view + 1 UDF: sumber angka analisis
 ├── output/
-│   ├── SLIK_Analysis_Dashboard.xlsx       # ⭐ deliverable B: dashboard 12 tab, siap import GSheet
+│   ├── SLIK_Analysis_Dashboard.xlsx       # ⭐ deliverable B: dashboard 13 tab, siap import GSheet
 │   ├── slik_aggregated_table.csv          # hasil query utama (587 × 25)
 │   ├── slik_customer_analysis.csv         # agregat + demografi + segmen + outcome risiko
 │   ├── matrix_whitelist_x_kol6m.csv       # matrix report
@@ -130,7 +130,7 @@ string tersebut.
 3. Rename file, lalu **Share**: *Anyone with the link – Viewer* dan tambahkan
    `muhammad.subhan@jago.com`. Lampirkan link saat submit.
 
-Isi workbook — 12 tab terlihat (plus satu sheet bantu `_src` yang disembunyikan, berisi blok data
+Isi workbook — 13 tab terlihat (plus satu sheet bantu `_src` yang disembunyikan, berisi blok data
 sumber tiap chart). Tiap tab dirancang **single page view** (muat satu layar tanpa scroll) dan
 mengikuti pola baca F/Z (angka paling krusial di kiri atas):
 
@@ -143,6 +143,7 @@ mengikuti pola baca F/Z (angka paling krusial di kiri atas):
 | `5. Tren Portofolio` | Tren 24 bulan NPL customer, NPL fasilitas, dan rata-rata DPD |
 | `6. Demografi` | Bad rate per usia/pendidikan/gender/status, dengan `n` dan 95% CI |
 | `7. Simulasi Kebijakan` | 5 skenario kriteria whitelist: basis lolos vs NPL yang tertahan |
+| `Legenda Warna` | Arti tiap warna dan tiap jenis sorotan, dengan kotak contoh warnanya |
 | `Kamus Metrik` | Definisi setiap metrik dengan label bahasa awam |
 | `Catatan & Asumsi` | Keputusan interpretasi, penanganan data quality, batasan |
 | `data_agregat`, `data_customer`, `data_tren` | data mentah hasil query, siap dipakai sebagai data source |
@@ -172,10 +173,19 @@ sama di kedua deliverable:
 | **Amber `#FDAF27`** | **sorot** — satu batang/kelompok yang menjadi inti argumen grafik itu |
 | **Ungu `#722B79`** | **penanda risiko** — metrik atau kategori yang artinya buruk (NPL, hapus buku) |
 | **Kelabu `#8B9299`** | konteks pembanding; deret pembanding memakai garis putus-putus kelabu |
+| **Hitam `#111111` titik-titik** | garis acuan rata-rata basis — acuan, bukan sorotan |
 
 Karena itu satu grafik bisa memuat amber dan ungu sekaligus dengan arti berbeda: pada tab
 `3. Segmentasi`, batang amber = segmen dengan rata-rata fasilitas terbanyak (inti Temuan 2),
 sedangkan garis ungu = tingkat NPL aktif pada sumbu kanan.
+
+Supaya aturan itu tidak perlu ditebak, legendanya ditulis di tiga tempat: satu strip legenda di
+kepala setiap halaman analitis, satu tab penuh `Legenda Warna` yang menjelaskan tiap jenis sorotan
+(baris amber muda, sel kontrol bergaris amber, gradasi heatmap, angka ungu, batang kelabu, garis
+putus-putus) beserta kotak contoh warnanya, dan blok *"Cara membaca warna grafik di atas"* di bawah
+setiap grafik notebook. Setiap sorotan juga selalu didampingi angka atau label, jadi seluruh
+halaman tetap terbaca bila dicetak hitam-putih atau dibaca oleh orang dengan keterbatasan
+membedakan warna.
 
 Storyline tujuh halaman analitis di workbook mengikuti urutan pertanyaan bisnis, bukan urutan
 tabel:
