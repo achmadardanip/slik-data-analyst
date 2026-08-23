@@ -156,6 +156,20 @@ Pemilihan chart didasarkan pada tipe variabel dan pertanyaan analisis, bukan tun
 test untuk memakai bar chart. Bar dipakai saat tujuannya membandingkan kategori; tren ordinal,
 distribusi numerik, relationship, dan part-to-whole memakai visual yang berbeda.
 
+Warna dipakai sebagai penanda, bukan hiasan — hanya tiga warna, dengan satu tugas per warna, dan
+aturan yang **sama di workbook maupun notebook** sehingga satu segmen tampil dengan warna yang
+sama di kedua deliverable:
+
+| Warna | Tugas |
+|---|---|
+| **Amber `#FDAF27`** | **sorot** — satu batang/kelompok yang menjadi inti argumen grafik itu |
+| **Ungu `#722B79`** | **penanda risiko** — metrik atau kategori yang artinya buruk (NPL, hapus buku) |
+| **Kelabu `#8B9299`** | konteks pembanding; deret pembanding memakai garis putus-putus kelabu |
+
+Karena itu satu grafik bisa memuat amber dan ungu sekaligus dengan arti berbeda: pada tab
+`3. Segmentasi`, batang amber = segmen dengan rata-rata fasilitas terbanyak (inti Temuan 2),
+sedangkan garis ungu = tingkat NPL aktif pada sumbu kanan.
+
 Storyline tujuh halaman analitis di workbook mengikuti urutan pertanyaan bisnis, bukan urutan
 tabel:
 
