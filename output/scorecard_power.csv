@@ -1,8 +1,8 @@
 metric,label,iv,gini,auc,arah,kekuatan
 flags_active_dpd10plus_count,Jumlah fasilitas aktif pernah telat >10 hari,2.671,0.906,0.953,Searah (naik = lebih berisiko),Kuat
+slik_exposure,Total eksposur SLIK (limit CC + outstanding KTA),0.635,0.395,0.302,Terbalik (naik = lebih aman),Sedang
 flags_allcondition_count,Jumlah fasilitas kredit (semua kondisi),0.733,0.278,0.639,Searah (naik = lebih berisiko),Sedang
+slik_installment,Total angsuran SLIK per bulan,0.529,0.223,0.612,Searah (naik = lebih berisiko),Sedang
 flags_restructured_allcondition_unsecured_count,Jumlah fasilitas tanpa agunan direstrukturisasi,0.6,0.121,0.56,Searah (naik = lebih berisiko),Lemah
-slik_exposure,Total eksposur SLIK (limit CC + outstanding KTA),0.301,0.115,0.442,Terbalik (naik = lebih aman),Lemah
 balance_unsecured_sum,Total outstanding tanpa agunan,0.384,0.079,0.54,Searah (naik = lebih berisiko),Tidak dapat dipakai
 mob_allcondition_max,Umur kredit terlama (bulan),0.549,0.042,0.479,Terbalik (naik = lebih aman),Tidak dapat dipakai
-slik_installment,Total angsuran SLIK per bulan,0.367,0.016,0.492,Terbalik (naik = lebih aman),Tidak dapat dipakai

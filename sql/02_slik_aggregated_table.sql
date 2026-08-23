@@ -19,7 +19,14 @@
 --  5. Restrukturisasi   : sifatKredit='1' (REF#14) ATAU
 --                         frekuensiRestrukturisasi>0 ATAU
 --                         tanggalRestrukturisasiAkhir tidak null.
---  6. Kartu kredit      : jenisKredit = 'X-30' (REF#15 sandi 30 = Kartu Kredit).
+--  6. Kartu kredit      : jenisKredit IN ('X-30','P05'). REF#15 memuat DUA skema
+--                         sandi yang dipakai berdampingan di data: sandi lama
+--                         (30 = Kartu Kredit, tersimpan sebagai 'X-30') dan
+--                         Sandi Referensi baru (P05 = Kartu Kredit/Kartu
+--                         Pembiayaan Syariah). Di dataset ini seluruh 'X-30'
+--                         sudah non-aktif dan semua kartu kredit aktif (860
+--                         fasilitas) memakai P05, jadi memakai 'X-30' saja akan
+--                         menihilkan seluruh kolom kartu kredit.
 --  7. Unsecured         : jenisAgunan IS NULL (tidak ada agunan terdaftar).
 --  8. Personal loan     : penggunaan Konsumsi (jenisPenggunaan='3')
 --                         DAN unsecured DAN bukan kartu kredit
@@ -66,7 +73,13 @@ ljk_class AS (
     ljk_name,
     (
       STARTS_WITH(LPAD(ljk, 6, '0'), '25')                      -- Perusahaan Pembiayaan
-      OR NOT REGEXP_CONTAINS(UPPER(ljk_name), r'BANK|BPR|BPD')  -- ventura / finansial lain
+      OR (
+        -- ventura / lembaga finansial lain: nama tanpa BANK/BPR/BPD, tetapi
+        -- prefix 60 (BPR) & 62 (BPRS) tetap bank walau namanya tidak memuat
+        -- kata "BPR" (mis. 620123 "Barakah Nawaitul Ikhlas").
+        NOT REGEXP_CONTAINS(UPPER(ljk_name), r'BANK|BPR|BPD')
+        AND NOT REGEXP_CONTAINS(LPAD(ljk, 6, '0'), r'^(60|62)')
+      )
     ) AS is_nonbank
   FROM ljk_map
 ),
@@ -108,12 +121,12 @@ fac AS (
       OR COALESCE(SAFE_CAST(d.frekuensiRestrukturisasi AS INT64), 0) > 0
       OR d.tanggalRestrukturisasiAkhir IS NOT NULL
     )                                                        AS is_restructured,
-    (d.jenisKredit = 'X-30')                                 AS is_credit_card,
+    (d.jenisKredit IN ('X-30', 'P05'))                       AS is_credit_card,
     (d.jenisAgunan IS NULL)                                  AS is_unsecured,
     (
-      d.jenisPenggunaan = '3'          -- Konsumsi
-      AND d.jenisAgunan IS NULL        -- tanpa agunan
-      AND d.jenisKredit <> 'X-30'      -- bukan kartu kredit
+      d.jenisPenggunaan = '3'                    -- Konsumsi
+      AND d.jenisAgunan IS NULL                  -- tanpa agunan
+      AND d.jenisKredit NOT IN ('X-30', 'P05')   -- bukan kartu kredit
     )                                                        AS is_personal_loan,
     COALESCE(lc.is_nonbank, FALSE)                           AS is_nonbank,
     DATE_DIFF(

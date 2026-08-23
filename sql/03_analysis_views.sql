@@ -68,7 +68,7 @@ SELECT
   (d.kondisi = '0')                                      AS is_active,
   (d.kondisi IN ('3', '4'))                              AS is_writeoff,
   (d.kondisi IN ('1','2','5','6','7','8','9','11','12')) AS is_closed,
-  (d.jenisKredit = 'X-30')                               AS is_credit_card,
+  (d.jenisKredit IN ('X-30', 'P05'))                     AS is_credit_card,
   (d.jenisAgunan IS NULL)                                AS is_unsecured
 FROM (
   SELECT

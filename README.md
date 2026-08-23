@@ -87,11 +87,13 @@ string tersebut.
 
 > **Kesetaraan angka SQL ↔ Excel ↔ Notebook.** Logika query utama dijalankan ulang lokal lewat dua
 > implementasi independen (DuckDB dan pandas murni) dan seluruh 587×25 sel identik. Tabel BigQuery
-> yang sudah jadi kemudian dibandingkan sel per sel terhadap hasil lokal: **14.670 dari 14.675 sel
-> identik**; 5 sel sisanya (`mob_active_avg` 1 sel, `slik_installment` 4 sel) berbeda tepat 0,01
-> karena urutan akumulasi *floating-point* antar engine berbeda dan nilainya jatuh persis di batas
-> pembulatan `ROUND(…, 2)` — selisih relatif 1e-9 s.d. 3e-3, tidak mengubah satu pun angka agregat,
-> segmen, atau rekomendasi.
+> yang sudah jadi kemudian dibandingkan sel per sel terhadap hasil lokal: **14.668 dari 14.675 sel
+> identik**; 7 sel sisanya (seluruhnya `slik_installment`) berbeda tepat 0,01 karena urutan
+> akumulasi *floating-point* antar engine berbeda dan nilainya jatuh persis di batas pembulatan
+> `ROUND(…, 2)` — selisih relatif 3e-8, tidak mengubah satu pun angka agregat, segmen, atau
+> rekomendasi. Kolom `SUM` yang tidak dibulatkan (`plafon_sum`, `balance_sum`, dst.) berbeda pada
+> orde 1e-6 atau lebih kecil, yaitu batas presisi FLOAT64, dan juga muncul saat query yang sama
+> dijalankan dua kali di BigQuery.
 >
 > View analisis memakai rumus desil yang sama dengan `pd.qcut` — bukan `NTILE(10)`, yang menaruh
 > baris sisa di bucket awal sehingga IV dan bad rate per desil berbeda tipis dari angka yang
@@ -158,7 +160,30 @@ langsung ke tabel BigQuery Anda.
 
 ---
 
-## Definisi & Asumsi Kunci (dari KODE REFERENSI OJK + profil data)
+## Dokumen Referensi yang Dipakai
+
+Dua *additional document* pada soal dipakai sebagai sumber definisi, bukan sekadar lampiran:
+
+| Dokumen | Dipakai untuk |
+|---|---|
+| **KODE REFERENSI (kamus sandi iDeb, 39 sheet)** | REF#15 jenis kredit (**dua skema sandi**: 30/`X-30` dan `P05`), REF#24 kondisi fasilitas (kategori "debitur tidak memiliki kewajiban" → definisi *closed*), REF#14 sifat kredit (restrukturisasi), REF#1 jenis LJK, sandi jenis penggunaan & jenis agunan, sandi gender |
+| **Pedoman Penyusunan Laporan Debitur SLIK V6.1 (OJK, 204 halaman)** | Semantik kolom: *Baki Debet* (§ posisi outstanding), *Plafon* (plafon efektif, bukan akumulasi), *Jumlah Hari Tunggakan* (0 = tidak menunggak, bukan kosong), *Tanggal Awal Kredit* = akad pertama (terpisah dari *Tanggal Mulai* untuk perpanjangan → MOB dihitung dari akad pertama), kategori kolektibilitas 1–5 dan batas NPL ≥ 3, serta pengisian kondisi 14 |
+
+Yang berubah karena membaca kedua dokumen sampai ke sandinya, bukan hanya nama kolomnya:
+
+- **Kartu kredit** — REF#15 ternyata memuat dua skema sandi berdampingan. Memakai sandi lama saja
+  (`X-30`) membuat ketiga kolom kartu kredit nol untuk seluruh 587 pemohon, karena **semua 860
+  kartu kredit aktif di dataset ini memakai `P05`**. Ini mengubah 7 dari 25 kolom wajib pada 353
+  pemohon.
+- **Closed** — daftar sandi `1,2,5,6,7,8,9,11,12` diambil langsung dari pengelompokan "debitur
+  tidak memiliki kewajiban" di REF#24, bukan dari tebakan; hapus buku (`3`,`4`) sengaja **tidak**
+  masuk karena kewajibannya belum selesai.
+- **Nonbank** — BPR/BPRS (prefix kode `60`/`62`) dikecualikan secara eksplisit, karena ada BPRS
+  yang namanya tidak memuat kata "BPR" sehingga lolos dari penyaringan berbasis nama.
+- **DPD** — `0` diperlakukan sebagai "tidak menunggak" (nilai sah), berbeda dari `NULL`
+  ("tidak ada riwayat"), sesuai definisi *Jumlah Hari Tunggakan* di pedoman.
+
+## Definisi & Asumsi Kunci (dari KODE REFERENSI + Pedoman SLIK V6.1 + profil data)
 
 | Konsep | Definisi yang dipakai |
 |---|---|
@@ -167,10 +192,10 @@ langsung ke tabel BigQuery Anda.
 | **Write-off** | `kondisi IN ('3','4')` — Dihapusbukukan / Hapus Tagih |
 | **Closed** | kondisi kategori "debitur tidak memiliki kewajiban" (lunas/dibatalkan/dialihkan: `1,2,5,6,7,8,9,11,12`) |
 | **Restrukturisasi** | `sifatKredit='1'` ATAU `frekuensiRestrukturisasi>0` ATAU `tanggalRestrukturisasiAkhir` terisi |
-| **Kartu kredit** | `jenisKredit = 'X-30'` (sandi 30) — *catatan: tidak ada CC berstatus aktif di dataset* |
+| **Kartu kredit** | `jenisKredit IN ('X-30','P05')` — REF#15 memuat dua skema sandi berdampingan: sandi lama 30 (tersimpan `X-30`) dan Sandi Referensi `P05` (Kartu Kredit/Kartu Pembiayaan Syariah) |
 | **Unsecured** | `jenisAgunan IS NULL` |
 | **Personal loan** | penggunaan Konsumsi + unsecured + bukan kartu kredit (definisi KTA) |
-| **Nonbank** | LJK Perusahaan Pembiayaan (kode prefix `25`) atau nama LJK tanpa BANK/BPR/BPD (modal ventura dll.) |
+| **Nonbank** | LJK Perusahaan Pembiayaan (kode prefix `25`), atau nama LJK tanpa BANK/BPR/BPD **dan** kodenya bukan prefix `60`/`62` (BPR/BPRS tetap bank walau namanya tidak memuat "BPR") |
 | **MOB** | selisih bulan `tanggalAwalKredit` → 2023-11 |
 | Window "N bulan terakhir" | bulan riwayat `tahunBulanXX` pada rentang [2023-11 − N .. 2023-10], bulan aplikasi tidak diikutkan |
 | **dpd10plus** | fasilitas aktif yang pernah DPD > 10 hari pada riwayat 24 bulan tersedia |
@@ -184,15 +209,15 @@ Definisi turunan yang dipakai untuk analisis risiko (lengkap di tab `Kamus Metri
 |---|---|---|
 | `ever_npl_12m` | pernah kol ≥ 3 dalam 12 bulan terakhir (82 customer, 14,0%) | **kontrol saja** — kolom ini juga membentuk segmen, jadi tidak boleh dipakai sebagai target uji |
 | `npl_now_active` | kol ≥ 3 **pada fasilitas yang masih aktif** per posisi 2023-11 (20 customer, 3,41%) | **target independen** yang dipakai untuk menilai skenario whitelist |
-| `is_thin_file` | `slik_exposure = 0` (154 customer) | menandai pemohon tanpa jejak eksposur aktif |
+| `is_thin_file` | `slik_exposure = 0` (107 customer) | menandai pemohon tanpa jejak eksposur aktif |
 | `slik_behavior_segment` | segmen rule-based dari sinyal terberat ke teringan: Writeoff → NPL/DPD>90 → Restructured → Past Due Ringan → Clean & Current | narasi segmentasi |
 | IV / Gini / AUC | Information Value, Gini = \|2·AUC−1\|, AUC via Mann-Whitney terhadap `npl_now_active` | uji kelayakan variabel scorecard |
 
 **Penanganan data quality** (didokumentasikan juga di komentar SQL dan tab `Catatan & Asumsi`):
 - 27 `kreditId` duplikat (snapshot ganda) → dedup `ROW_NUMBER()` ambil `tanggalUpdate` terbaru, tie-break baki debet terbesar.
-- 2.331 sel tanggal berisi `#VALUE!` → semua parsing memakai `SAFE.PARSE_DATE` / `SAFE_CAST` (raw di-load sebagai STRING).
+- 3.483 sel tanggal berisi `#VALUE!` (`tanggalKondisi` 2.044, `tanggalAkadAwal` 1.128, `tanggalUpdate` 292, `tanggalJatuhTempo` 19; menyentuh 2.612 baris dan 568 pemohon) → semua parsing memakai `SAFE.PARSE_DATE` / `SAFE_CAST` (raw di-load sebagai STRING). `tanggalAwalKredit` bersih 100%, jadi MOB tidak terpengaruh.
 - Mapping LJK tidak unik per kode (entitas konvensional + UUS) → dedup sebelum join.
-- Spec meminta kolom kartu kredit, tetapi dataset **tidak punya satu pun CC berstatus aktif** → kolom tetap dibuat (nilainya 0) dan fakta ini dicatat, bukan disembunyikan.
+- `jenisKredit` memakai **dua skema sandi REF#15 sekaligus**. Seluruh 511 fasilitas kartu kredit ber-sandi lama `X-30` sudah non-aktif, sementara **860 kartu kredit aktif memakai Sandi Referensi `P05`**. Membaca satu skema saja akan menihilkan ketiga kolom kartu kredit dan memindahkan Rp 73,0 miliar limit CC ke kolom KTA, jadi keduanya dibaca bersama.
 
 ## Ringkasan Hasil
 
@@ -210,13 +235,15 @@ rata-rata **64,2 fasilitas** kredit, dibanding 17,7 di segmen Clean & Current. B
 fasilitas, bukan besarnya pinjaman, yang membedakan pemohon buruk.
 
 **Temuan 3 — eksposur besar justru lebih aman, tapi jangan dipakai sebagai skor.** Pada definisi
-kontrol `ever_npl_12m`, bad rate turun dari **20,3% di desil eksposur terendah menjadi 8,5% di
-desil tertinggi** — pemohon *thin file* (154 orang tanpa eksposur aktif) yang lebih berisiko.
-Penurunannya **tidak monoton**, dan pada target `npl_now_active` rank-ordering-nya nyaris hilang
-(20 kejadian tersebar di 10 desil). Uji kekuatan mengonfirmasi: `slik_exposure` hanya Gini
-**0,115** (lemah, arah terbalik), sedangkan `flags_active_dpd10plus_count` mencapai Gini
-**0,906**. Kesimpulannya: pakai sinyal kualitas (DPD, kolektibilitas) sebagai inti skor, dan
-eksposur hanya sebagai pendamping — bukan cut-off.
+kontrol `ever_npl_12m`, bad rate turun dari **27,1% di desil eksposur terendah menjadi 3,4% di
+desil tertinggi** — pemohon *thin file* (107 orang tanpa eksposur aktif) yang lebih berisiko.
+Gradiennya jelas tetapi **tidak monoton** (desil 2 masih di atas desil 1), dan pada target
+`npl_now_active` rank-ordering-nya jauh lebih kasar (20 kejadian tersebar di 10 desil). Uji
+kekuatan mengonfirmasi arahnya: `slik_exposure` mencapai Gini **0,395** dengan AUC **0,302**, yaitu
+daya pisah sedang ke arah **terbalik** dari intuisi "eksposur besar = bahaya", sedangkan
+`flags_active_dpd10plus_count` mencapai Gini **0,906**. Kesimpulannya: pakai sinyal kualitas (DPD,
+kolektibilitas) sebagai inti skor, dan eksposur hanya sebagai ukuran kapasitas — bukan cut-off
+risiko, tetapi juga bukan pengungkit persetujuan.
 
 **Temuan 4 — kualitas portofolio memburuk selama jendela pengamatan.** NPL level customer naik
 dari **9,7% (Nov-21) ke 11,7% (Okt-23)** dan rata-rata DPD hampir dua kali lipat, dari
