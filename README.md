@@ -147,6 +147,13 @@ mengikuti pola baca F/Z (angka paling krusial di kiri atas):
 | `Catatan & Asumsi` | Keputusan interpretasi, penanganan data quality, batasan |
 | `data_agregat`, `data_customer`, `data_tren` | data mentah hasil query, siap dipakai sebagai data source |
 
+Tab `data_agregat` dan `data_tren` identik sel per sel dengan CSV di `output/`. Tab
+`data_customer` berbeda pada **21 sel** dan hanya di dua kolom — kolektibilitas maks 12 bulan yang
+kosong diisi `1` (9 sel) dan hari telat maks 3 bulan yang kosong diisi `0` (12 sel) — supaya filter
+`SUMPRODUCT` pada tab `7. Simulasi Kebijakan` memperlakukan pemohon tanpa riwayat sebagai tanpa
+catatan buruk, sama seperti perhitungan skenario di SQL dan notebook. Ini dicatat di tab
+`Catatan & Asumsi` dan sebagai komentar sel pada kedua header kolomnya.
+
 Setiap tab dashboard memakai `print_area` eksplisit + *fit to 1 page* (A4 landscape), jadi satu
 tab = satu halaman utuh baik di layar maupun saat dicetak/di-PDF-kan — tidak ada chart yang
 terpotong di batas halaman. Geometri tiap halaman diverifikasi dengan me-render workbook ke PDF
@@ -250,6 +257,16 @@ Definisi turunan yang dipakai untuk analisis risiko (lengkap di tab `Kamus Metri
 - 3.483 sel tanggal berisi `#VALUE!` (`tanggalKondisi` 2.044, `tanggalAkadAwal` 1.128, `tanggalUpdate` 292, `tanggalJatuhTempo` 19; menyentuh 2.612 baris dan 568 pemohon) → semua parsing memakai `SAFE.PARSE_DATE` / `SAFE_CAST` (raw di-load sebagai STRING). `tanggalAwalKredit` bersih 100%, jadi MOB tidak terpengaruh.
 - Mapping LJK tidak unik per kode (entitas konvensional + UUS) → dedup sebelum join.
 - `jenisKredit` memakai **dua skema sandi REF#15 sekaligus**. Seluruh 511 fasilitas kartu kredit ber-sandi lama `X-30` sudah non-aktif, sementara **860 kartu kredit aktif memakai Sandi Referensi `P05`**. Membaca satu skema saja akan menihilkan ketiga kolom kartu kredit dan memindahkan Rp 73,0 miliar limit CC ke kolom KTA, jadi keduanya dibaca bersama.
+
+## Dua Ketidakcocokan pada Spesifikasi — dan Keputusannya
+
+Keduanya dinyatakan terbuka, juga di blok komentar `sql/02_slik_aggregated_table.sql` dan tab
+`Catatan & Asumsi`, supaya reviewer tidak perlu menebak kenapa hasilnya berbeda dari teks soal:
+
+| Nomor | Isi ketidakcocokan | Keputusan |
+|---|---|---|
+| **9** | Nama kolom ditulis `Installment_personal_loan_active_sum` (huruf `I` kapital), sedangkan 24 nama kolom lain seluruhnya huruf kecil | Kolom dibuat `installment_personal_loan_active_sum` agar penamaan 25 kolom seragam. Nama kolom BigQuery *case-insensitive* saat dirujuk, jadi `SELECT Installment_personal_loan_active_sum` dengan ejaan spesifikasi tetap berhasil pada tabel yang diserahkan (sudah diuji) |
+| **16** | Nama kolom `collection_status_allcondition_last_12months_max`, tetapi keterangannya berbunyi *"last 6 months"* — sama dengan keterangan nomor 15 | Diikuti **nama kolomnya** (jendela 12 bulan) supaya nomor 15 dan 16 memberi informasi berbeda. Bila yang dimaksud memang 6 bulan, cukup ubah satu angka pada CTE `hist_agg` |
 
 ## Ringkasan Hasil
 

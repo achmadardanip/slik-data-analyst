@@ -50,6 +50,19 @@
 -- 15. Kolom count/sum default 0; kolom max/avg dibiarkan NULL bila customer
 --     tidak punya fasilitas/riwayat yang memenuhi kriteria (NULL bermakna
 --     "tidak ada data", beda dengan 0).
+--
+-- >>> CATATAN ATAS SPESIFIKASI (dua hal yang perlu dinyatakan terbuka) <<<
+--  a. Nomor 9 pada spesifikasi tertulis 'Installment_personal_loan_active_sum'
+--     dengan huruf I kapital, sementara 24 nama kolom lainnya seluruhnya huruf
+--     kecil. Kolom di sini dibuat installment_personal_loan_active_sum agar
+--     penamaannya konsisten dengan 24 kolom lain; nama kolom di BigQuery
+--     bersifat case-insensitive saat dirujuk, jadi SELECT dengan ejaan
+--     spesifikasi tetap berhasil pada tabel ini.
+--  b. Nomor 16 diminta bernama collection_status_allcondition_last_12months_max
+--     tetapi keterangannya berbunyi "... last 6 months", identik dengan
+--     keterangan nomor 15. Yang diikuti adalah nama kolomnya (jendela 12 bulan)
+--     supaya nomor 15 dan 16 memberi informasi berbeda. Bila yang dimaksud
+--     memang 6 bulan, cukup ubah angka 12 menjadi 6 pada CTE hist_agg.
 -- ============================================================================
 
 DECLARE app_month DATE DEFAULT DATE '2023-11-01';
