@@ -80,8 +80,26 @@ string tersebut.
    kolom `lolos_kriteria_usulan` (dengan `COALESCE(kol_12m, 1)` yang membedakan 490 dari
    481) dan `vw_kpi_summary` memuat seluruh angka KPI dalam satu baris, sehingga tidak ada
    satu pun angka ringkasan yang perlu dihitung ulang dengan formula di spreadsheet.
-5. **Share akses**: halaman dataset `slik` → **Sharing → Permissions → Add principal** →
-   `muhammad.subhan@jago.com` → role **BigQuery Data Viewer**.
+5. **Share akses** — reviewer perlu **dua** izin, bukan satu:
+   - dataset `slik` → **Sharing → Permissions → Add principal** → `muhammad.subhan@jago.com` →
+     role **BigQuery Data Viewer** (izin membaca tabel & view);
+   - **IAM & Admin → Grant access** pada project → principal yang sama → role
+     **BigQuery Job User** (izin membuat job query; tanpa ini reviewer hanya melihat skema,
+     `SELECT` gagal dengan `Permission bigquery.jobs.create denied`).
+
+   Lewat CLI:
+
+   ```bash
+   # 1. dataset-level: sunting ACL dataset (bq add-iam-policy-binding pada dataset butuh allowlist)
+   bq show --format=prettyjson slik-da-intern-technical-test:slik > ds.json
+   #    tambahkan {"role":"READER","userByEmail":"muhammad.subhan@jago.com"} ke array "access",
+   #    buang field read-only (etag, creationTime, lastModifiedTime, selfLink, id), simpan ds.json
+   bq update --source ds.json slik-da-intern-technical-test:slik
+
+   # 2. project-level: izin menjalankan job query
+   gcloud projects add-iam-policy-binding slik-da-intern-technical-test \
+     --member=user:muhammad.subhan@jago.com --role=roles/bigquery.jobUser --condition=None
+   ```
 6. **Google Docs**: salin isi ketiga file `sql/` ke satu dokumen Google Docs (beri heading per file),
    set akses *Anyone with the link – Viewer*, lampirkan link saat submit.
 
