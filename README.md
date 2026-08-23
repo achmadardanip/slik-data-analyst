@@ -6,7 +6,7 @@ Pengerjaan lengkap technical test **Risk Data Analyst Intern** (posisi aplikasi 
 | Deliverable | Isi | Lokasi |
 |---|---|---|
 | **A. SQL + Table ID** | *SLIK aggregated table* 587 customer × 25 kolom di BigQuery | `sql/` |
-| **B. Visualisasi + analisis** | Dashboard Excel/Google Sheets 13 tab **dan** Looker Studio 7 halaman | `output/`, `docs/` |
+| **B. Visualisasi + analisis** | Dashboard Google Sheets/Excel: 12 tab terlihat + 7 halaman analitis | `output/` |
 | **C. Insight** | Jupyter Notebook tereksekusi (grafik + angka + narasi) | `notebooks/` |
 
 ## Struktur Proyek
@@ -15,9 +15,9 @@ Pengerjaan lengkap technical test **Risk Data Analyst Intern** (posisi aplikasi 
 ├── sql/
 │   ├── 01_load_tables.sql                 # DDL + panduan load CSV ke BigQuery
 │   ├── 02_slik_aggregated_table.sql       # ⭐ query utama: SLIK aggregated table (25 kolom)
-│   └── 03_analysis_views.sql              # 1 tabel + 12 view + 1 UDF: sumber data Looker Studio
+│   └── 03_analysis_views.sql              # 1 tabel + 12 view + 1 UDF: sumber angka analisis
 ├── output/
-│   ├── SLIK_Analysis_Dashboard.xlsx       # ⭐ deliverable B: dashboard 13 tab, siap import GSheet
+│   ├── SLIK_Analysis_Dashboard.xlsx       # ⭐ deliverable B: dashboard 12 tab, siap import GSheet
 │   ├── slik_aggregated_table.csv          # hasil query utama (587 × 25)
 │   ├── slik_customer_analysis.csv         # agregat + demografi + segmen + outcome risiko
 │   ├── matrix_whitelist_x_kol6m.csv       # matrix report
@@ -25,16 +25,10 @@ Pengerjaan lengkap technical test **Risk Data Analyst Intern** (posisi aplikasi 
 │   ├── scorecard_deciles.csv              # rank-ordering bad rate per desil
 │   ├── scorecard_power.csv                # IV / Gini / AUC tiap kandidat variabel
 │   ├── slik_monthly_trend.csv             # tren kualitas portofolio 24 bulan (Nov-21 … Oct-23)
-│   ├── slik_monthly_customer.csv          # panel bulanan per customer (sumber kontrol date range)
+│   ├── slik_monthly_customer.csv          # panel bulanan per customer
 │   └── whitelist_scenarios.csv            # simulasi 5 skenario kriteria whitelist
-├── docs/
-│   ├── looker_studio_build.md             # ⭐ spesifikasi layout + tema Jago + storyline 7 halaman
-│   ├── LOOKER_PERBAIKAN_CEPAT.md          # perbaikan layout terpotong (mulai di sini)
-│   └── looker_calculated_fields.md        # rumus field Looker + uji angka
 ├── notebooks/
 │   └── slik_insight_analysis.ipynb        # ⭐ deliverable C: insight (sudah tereksekusi)
-├── assets/
-│   └── jago_logo.svg                      # penanda logo untuk header dashboard
 └── requirements.txt
 ```
 
@@ -76,15 +70,16 @@ string tersebut.
 3. Jalankan `sql/02_slik_aggregated_table.sql` → menghasilkan
    **`slik-da-intern-technical-test.slik.slik_aggregated_table`** (587 baris × 25 kolom).
    Ini **Table ID** yang dilampirkan saat submit.
-4. Jalankan `sql/03_analysis_views.sql` → 14 objek pendukung dashboard: tabel
+4. Jalankan `sql/03_analysis_views.sql` → 14 objek pendukung analisis: tabel
    `slik_customer_analysis`, UDF `fn_kol_label`, dan 12 view (`vw_slik_facility`,
    `vw_slik_facility_history`, `vw_matrix_whitelist_x_kol6m`, `vw_segment_summary`,
    `vw_scorecard_deciles`, `vw_scorecard_power`, `vw_slik_monthly_trend`,
    `vw_slik_monthly_customer`, `vw_whitelist_scenarios`, `vw_demografi_ci`,
-   `vw_looker_customer`, `vw_looker_kpi`). Dua view terakhir khusus untuk Looker
-   Studio: keduanya memindahkan rumus yang rawan salah ketik dari sisi laporan ke
-   sisi SQL, sehingga dashboard Looker tidak butuh satu pun *calculated field* untuk
-   kriteria whitelist dan tidak butuh *chart-level filter* untuk KPI.
+   `vw_customer_labeled`, `vw_kpi_summary`). Dua view terakhir memindahkan rumus yang
+   rawan salah ketik dari sisi laporan ke sisi SQL: `vw_customer_labeled` sudah memuat
+   kolom `lolos_kriteria_usulan` (dengan `COALESCE(kol_12m, 1)` yang membedakan 490 dari
+   481) dan `vw_kpi_summary` memuat seluruh angka KPI dalam satu baris, sehingga tidak ada
+   satu pun angka ringkasan yang perlu dihitung ulang dengan formula di spreadsheet.
 5. **Share akses**: halaman dataset `slik` → **Sharing → Permissions → Add principal** →
    `muhammad.subhan@jago.com` → role **BigQuery Data Viewer**.
 6. **Google Docs**: salin isi ketiga file `sql/` ke satu dokumen Google Docs (beri heading per file),
@@ -104,12 +99,10 @@ string tersebut.
 > `vw_whitelist_scenarios`, `vw_segment_summary`, `vw_matrix_whitelist_x_kol6m`,
 > `vw_slik_monthly_trend`) diuji langsung terhadap CSV di `output/` dan **seluruhnya identik**.
 > Dua sel *cross-check* di dalam notebook (bagian 5 dan 8) mengulang uji yang sama dan mencetak
-> `0 sel berbeda -> IDENTIK`. Jadi angka BigQuery, Excel, Looker, dan notebook bisa dibandingkan
+> `0 sel berbeda -> IDENTIK`. Jadi angka BigQuery, Excel, dan notebook bisa dibandingkan
 > langsung tanpa catatan kaki.
 
-### 2. Visualisasi + Analisis (deliverable B)
-
-#### 2a. Google Sheets / Excel — dashboard sudah jadi
+### 2. Visualisasi + Analisis (deliverable B: Google Sheets)
 
 1. Buka [sheets.google.com](https://sheets.google.com) → **Blank spreadsheet**.
 2. **File → Import → Upload** → pilih `output/SLIK_Analysis_Dashboard.xlsx` →
@@ -117,7 +110,8 @@ string tersebut.
 3. Rename file, lalu **Share**: *Anyone with the link – Viewer* dan tambahkan
    `muhammad.subhan@jago.com`. Lampirkan link saat submit.
 
-Isi workbook — 13 tab, tiap tab dirancang **single page view** (muat satu layar tanpa scroll) dan
+Isi workbook — 12 tab terlihat (plus satu sheet bantu `_src` yang disembunyikan, berisi blok data
+sumber tiap chart). Tiap tab dirancang **single page view** (muat satu layar tanpa scroll) dan
 mengikuti pola baca F/Z (angka paling krusial di kiri atas):
 
 | Tab | Isi |
@@ -138,47 +132,22 @@ tab = satu halaman utuh baik di layar maupun saat dicetak/di-PDF-kan — tidak a
 terpotong di batas halaman. Geometri tiap halaman diverifikasi dengan me-render workbook ke PDF
 dan mengukur tinggi konten per tab sebelum file dianggap final.
 
-#### 2b. Looker Studio — 7 halaman
-
-**Laporan:** https://datastudio.google.com/reporting/4bd2171c-d77c-4ac7-a353-3d6a53de1698
-
-| Dokumen | Kegunaan |
-|---|---|
-| [`docs/LOOKER_PERBAIKAN_CEPAT.md`](docs/LOOKER_PERBAIKAN_CEPAT.md) | **Mulai di sini** — perbaiki visual terpotong + Safari + checklist 10 menit |
-| [`docs/looker_studio_build.md`](docs/looker_studio_build.md) | Spesifikasi lengkap: koordinat piksel, 7 halaman, tema Jago, storyline |
-| [`docs/looker_calculated_fields.md`](docs/looker_calculated_fields.md) | Rumus field Looker siap copy-paste + uji angka |
-
-Setelan kanvas (1600×900, *Fit to width*, `Canvas size = Auto` per halaman) plus
-membangun satu halaman lalu **Duplicate page** enam kali memperbaiki visual terpotong di
-mode presentasi: delapan komponen kerangka (judul, sub-judul, logo, garis aksen, label
-topik, baris kontrol, headline, catatan kaki) jadi berada di koordinat identik di semua
-halaman, bukan ditempel ulang manual 56 kali.
-
-Rumus yang rawan salah ketik dipindahkan ke BigQuery lewat `vw_looker_customer`
-(menambah `lolos_kriteria_usulan`, `celah_npl_others_6bln`, dan tiga kolom label bahasa
-awam) dan `vw_looker_kpi` (satu baris berisi seluruh angka KPI). Akibatnya laporan tidak
-memerlukan *calculated field* untuk kriteria whitelist dan tidak memerlukan
-*chart-level filter* untuk KPI, sehingga angka Looker dijamin sama dengan workbook dan
-notebook: 587 pemohon, 510 flag Others, 13 celah risiko, 490 lolos (83,5%).
-
-| Halaman | Pertanyaan yang dijawab | Data source |
-|---|---|---|
-| 1. Ringkasan eksekutif | Seberapa besar dan seberapa berisiko basis pemohon ini? | `vw_looker_kpi`, `vw_whitelist_scenarios`, `vw_slik_monthly_customer` |
-| 2. Matrix report | Apakah flag whitelist benar-benar memisahkan risiko? | `vw_looker_customer`, `vw_matrix_whitelist_x_kol6m` |
-| 3. Segmentasi perilaku | Perilaku kredit seperti apa yang paling berbahaya? | `vw_segment_summary` |
-| 4. Uji kelayakan scorecard | Variabel SLIK mana yang layak masuk scorecard? | `vw_scorecard_deciles`, `vw_scorecard_power` |
-| 5. Tren kualitas portofolio | Apakah kualitas kredit membaik atau memburuk? | `vw_slik_monthly_trend`, `vw_slik_monthly_customer` |
-| 6. Demografi vs risiko | Apakah demografi menambah informasi di luar data SLIK? | `vw_demografi_ci` |
-| 7. Rekomendasi & simulasi | Kriteria whitelist mana yang sebaiknya dipakai? | `vw_looker_kpi`, `vw_whitelist_scenarios` |
-
-Elemen interaktif: **date range control** pada field `report_month` (panel bulanan `DS_PANEL`,
-dipakai halaman 1 & 5) plus drop-down `whitelist_flag`, `slik_behavior_segment`, dan `age_group`.
-Keempatnya dijadikan **report-level** agar berlaku di seluruh halaman, dan chart utama
-mengaktifkan **cross-filtering** sehingga klik pada satu batang menyaring seluruh halaman.
-
 Pemilihan chart didasarkan pada tipe variabel dan pertanyaan analisis, bukan tuntutan technical
 test untuk memakai bar chart. Bar dipakai saat tujuannya membandingkan kategori; tren ordinal,
 distribusi numerik, relationship, dan part-to-whole memakai visual yang berbeda.
+
+Storyline tujuh halaman analitis di workbook mengikuti urutan pertanyaan bisnis, bukan urutan
+tabel:
+
+| Halaman | Pertanyaan yang dijawab | Sumber angka |
+|---|---|---|
+| 1. Ringkasan | Seberapa besar dan seberapa berisiko basis pemohon ini? | `vw_kpi_summary`, `vw_whitelist_scenarios` |
+| 2. Matrix report | Apakah flag whitelist benar-benar memisahkan risiko? | `vw_matrix_whitelist_x_kol6m` |
+| 3. Segmentasi | Perilaku kredit seperti apa yang paling berbahaya? | `vw_segment_summary` |
+| 4. Scorecard | Variabel SLIK mana yang layak masuk scorecard? | `vw_scorecard_deciles`, `vw_scorecard_power` |
+| 5. Tren portofolio | Apakah kualitas kredit membaik atau memburuk? | `vw_slik_monthly_trend` |
+| 6. Demografi | Apakah demografi menambah informasi di luar data SLIK? | `vw_demografi_ci` |
+| 7. Simulasi kebijakan | Kriteria whitelist mana yang sebaiknya dipakai? | `vw_whitelist_scenarios` |
 
 ### 3. Jupyter Notebook / Google Colab (deliverable C: insight)
 
@@ -268,7 +237,3 @@ S2 sudah menutup seluruh kebocoran NPL aktif dengan biaya 3,4pp basis pemohon. S
 menambah proteksi apa pun tetapi memotong 5–11pp basis lagi, jadi syarat tambahannya tidak
 sepadan. Detail perhitungan ada di `notebooks/slik_insight_analysis.ipynb` dan tab
 `7. Simulasi Kebijakan`.
-
-
-
-

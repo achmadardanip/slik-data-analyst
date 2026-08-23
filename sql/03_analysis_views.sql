@@ -1,5 +1,5 @@
 -- ============================================================================
--- TABEL & VIEW ANALISIS (sumber data Looker Studio & workbook Excel)
+-- TABEL & VIEW ANALISIS (sumber data workbook Excel/Google Sheets & notebook)
 --
 -- Seluruh angka pada deliverable bisa direproduksi dari objek di file ini.
 -- Nama dan definisi kolom dijaga identik dengan implementasi pembanding di
@@ -10,30 +10,30 @@
 --  1. vw_slik_facility_history    : 1 baris = fasilitas x bulan pelaporan.
 --  2. slik_customer_analysis      : TABEL lebar 1 baris per customer -- 25 kolom
 --                                   agregat + demografi + segmen + band + label
---                                   ramah-pembaca + outcome  ->  DS_CUST.
+--                                   ramah-pembaca + outcome risiko.
 --  3. vw_matrix_whitelist_x_kol6m : matrix report whitelist_flag x Kol 6 bulan.
 --  4. vw_segment_summary          : ringkasan metrik per segmen perilaku SLIK.
 --  5. vw_scorecard_deciles        : rank-ordering desil eksposur & angsuran.
 --  6. vw_scorecard_power          : IV + Gini + AUC per kandidat variabel.
---  7. vw_slik_monthly_trend       : tren 24 bulan level portofolio -> DS_TREND.
---  8. vw_slik_monthly_customer    : panel NIK x bulan             -> DS_PANEL.
+--  7. vw_slik_monthly_trend       : tren 24 bulan level portofolio.
+--  8. vw_slik_monthly_customer    : panel bulanan NIK x bulan pelaporan.
 --  9. vw_whitelist_scenarios      : simulasi 5 skenario kriteria whitelist.
 -- 10. vw_demografi_ci             : bad rate per demografi + CI 95% (Wilson).
--- 11. vw_looker_customer          : DS_CUST versi siap-Looker -- slik_customer_
---                                   analysis + kolom turunan yang tadinya harus
---                                   dibuat manual sebagai calculated field.
--- 12. vw_looker_kpi               : 1 baris, seluruh angka KPI halaman 1 & 7
---                                   sudah dihitung -> scorecard tanpa filter.
+-- 11. vw_customer_labeled        : tabel analisis + kolom turunan siap-pakai --
+--                                  slik_customer_analysis plus kriteria & label
+--                                  yang tadinya dihitung ulang di sisi laporan.
+-- 12. vw_kpi_summary             : 1 baris, seluruh angka KPI ringkasan &
+--                                  rekomendasi sudah dihitung di SQL.
 --
 -- KENAPA ADA OBJEK 11 & 12
 -- Keduanya tidak menambah analisis baru; keduanya memindahkan logika yang rawan
--- salah dari sisi Looker Studio ke sisi SQL. Rumus `Lolos kriteria usulan` harus
--- memakai COALESCE(kol_12m, 1) karena 9 pemohon ber-flag Others tidak punya baris
--- riwayat sama sekali pada jendela 12 bulan. Kalau rumus itu ditulis ulang dengan
--- tangan di Looker tanpa COALESCE, scorecard menampilkan 481 (82,3%) alih-alih
--- 490 (83,5%) dan laporan jadi bertentangan dengan workbook serta notebook.
--- Dengan kolom ini tersedia langsung di view, laporan Looker tidak perlu satu pun
--- calculated field untuk kriteria whitelist.
+-- salah dari sisi laporan/spreadsheet ke sisi SQL. Rumus `lolos_kriteria_usulan`
+-- harus memakai COALESCE(kol_12m, 1) karena 9 pemohon ber-flag Others tidak punya
+-- baris riwayat sama sekali pada jendela 12 bulan. Kalau rumus itu ditulis ulang
+-- dengan tangan di formula spreadsheet tanpa COALESCE, hasilnya 481 (82,3%)
+-- alih-alih 490 (83,5%) dan angka laporan jadi bertentangan dengan workbook serta
+-- notebook. Dengan kolom ini tersedia langsung di view, satu-satunya sumber
+-- kebenaran untuk kriteria whitelist ada di SQL.
 --
 -- BULAN APLIKASI
 -- Bulan aplikasi 2023-11 ditulis sebagai literal DATE '2023-11-01' di setiap
@@ -169,7 +169,7 @@ CREATE OR REPLACE FUNCTION `slik-da-intern-technical-test.slik.fn_kol_label`(
 
 
 -- ----------------------------------------------------------------------------
--- 2. Tabel analisis level customer -- data source utama (DS_CUST).
+-- 2. Tabel analisis level customer -- sumber data utama seluruh analisis.
 --    25 kolom spesifikasi + demografi + segmen perilaku + band scorecard
 --    + label ramah-pembaca + dua definisi outcome.
 --
@@ -244,7 +244,7 @@ SELECT
     WHEN b.slik_installment < 20000000             THEN '3. 5 - 20 Juta'
     ELSE                                                '4. >= 20 Juta'
   END AS slik_installment_band,
-  -- Label ramah-pembaca (dipakai sebagai dimensi di Looker & Excel)
+  -- Label ramah-pembaca (dipakai sebagai dimensi di workbook & notebook)
   `slik-da-intern-technical-test.slik.fn_kol_label`(
     b.collection_status_allcondition_last_6months_max,  'Tanpa Riwayat 6 Bln')  AS kol_6m_label,
   `slik-da-intern-technical-test.slik.fn_kol_label`(
@@ -520,8 +520,8 @@ ORDER BY f.ym;
 
 -- ----------------------------------------------------------------------------
 -- 8. Panel bulanan per pemohon (NIK x bulan) -- satu-satunya sumber yang punya
---    dimensi tanggal SEKALIGUS atribut kategori, sehingga date range control
---    dan filter kategori di Looker Studio bisa bekerja pada chart yang sama.
+--    dimensi tanggal SEKALIGUS atribut kategori, sehingga tren waktu dan
+--    potongan kategori bisa dihitung dari satu tabel yang sama.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE VIEW `slik-da-intern-technical-test.slik.vw_slik_monthly_customer` AS
 WITH h AS (
@@ -607,7 +607,7 @@ ORDER BY skenario;
 
 -- ----------------------------------------------------------------------------
 -- 10. Bad rate per kelompok demografi + selang kepercayaan 95%.
---     Dipakai di halaman demografi (Excel & Looker) supaya kelompok dengan
+--     Dipakai di halaman demografi (workbook & notebook) supaya kelompok dengan
 --     sampel kecil tidak dibaca berlebihan: bila lo-hi dua kelompok saling
 --     tumpang tindih, perbedaan rate-nya belum bisa disebut nyata.
 --     Bentuk long (dimensi, kategori) agar satu chart bisa dipakai untuk
@@ -660,14 +660,14 @@ ORDER BY dimensi, kategori;
 
 
 -- ----------------------------------------------------------------------------
--- 11. DS_CUST siap-Looker.
+-- 11. Tabel analisis versi berlabel.
 --     Semua kolom slik_customer_analysis diteruskan apa adanya (supaya parity
 --     dengan CSV/workbook tetap bisa diuji), lalu ditambah kolom turunan yang
---     sebelumnya harus dibuat sebagai calculated field di Looker Studio.
+--     kalau tidak ada harus dihitung ulang dengan tangan di sisi laporan.
 --     Label kelompok dipakai apa adanya sebagai teks pada chart, jadi pembaca
 --     non-teknis tidak perlu menerjemahkan kode "3.Customer Others".
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE VIEW `slik-da-intern-technical-test.slik.vw_looker_customer` AS
+CREATE OR REPLACE VIEW `slik-da-intern-technical-test.slik.vw_customer_labeled` AS
 SELECT
   c.*,
 
@@ -678,7 +678,7 @@ SELECT
        AND COALESCE(c.collection_status_allcondition_last_12months_max, 1) <= 2,
      'Lolos', 'Ditolak')                                    AS lolos_kriteria_usulan,
 
-  -- Kantong risiko yang masih lolos kriteria berjalan (KPI "13" di halaman 1).
+  -- Kantong risiko yang masih lolos kriteria berjalan (KPI "13 celah risiko").
   IF(c.whitelist_flag = '3.Customer Others'
        AND c.collection_status_allcondition_last_6months_max BETWEEN 3 AND 5,
      1, 0)                                                  AS celah_npl_others_6bln,
@@ -711,17 +711,14 @@ FROM `slik-da-intern-technical-test.slik.slik_customer_analysis` c;
 
 
 -- ----------------------------------------------------------------------------
--- 12. Satu baris berisi seluruh angka KPI halaman 1 dan 7.
---     Alasannya praktis: scorecard Looker Studio yang memakai chart-level filter
+-- 12. Satu baris berisi seluruh angka KPI ringkasan dan rekomendasi.
+--     Alasannya praktis: KPI yang dihitung ulang dengan formula di sisi laporan
 --     adalah sumber kesalahan paling sering (filter tertinggal, operator salah,
---     NULL tidak tertangani). Dengan view ini setiap scorecard cukup memilih satu
+--     NULL tidak tertangani). Dengan view ini setiap KPI cukup dibaca dari satu
 --     kolom, tanpa filter sama sekali, sehingga angka di laporan mustahil berbeda
 --     dari angka di workbook dan notebook.
---     Agregasi kolom di Looker: pilih MAX atau AVG -- karena hanya ada 1 baris,
---     keduanya mengembalikan nilai yang sama dan tidak bisa menggandakan diri
---     walau ada filter halaman yang aktif.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE VIEW `slik-da-intern-technical-test.slik.vw_looker_kpi` AS
+CREATE OR REPLACE VIEW `slik-da-intern-technical-test.slik.vw_kpi_summary` AS
 WITH c AS (
   SELECT
     *,
